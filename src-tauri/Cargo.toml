@@ -1,6 +1,6 @@
 [package]
 name = "tbg-pricing"
-version = "0.2.0"
+version = "0.2.1"
 description = "TBG Pricing — local till-price comparison dashboard"
 edition = "2021"
 rust-version = "1.77"
