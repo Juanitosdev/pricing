@@ -1,0 +1,17 @@
+{
+  "name": "tbg-pricing",
+  "private": true,
+  "version": "0.1.0",
+  "description": "TBG Pricing — local till-price comparison dashboard, packaged as a self-updating desktop app.",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "prepare:web": "node scripts/copy-web.mjs",
+    "signer:generate": "tauri signer generate -w tbg-pricing-updater.key"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

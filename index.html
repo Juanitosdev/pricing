@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Price Comparison — till pricing by measure</title>
+<style>
+  :root{
+    color-scheme: light;
+    --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f4f3f0;
+    --ink:#0b0b0b; --secondary:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --accent:#2a78d6; --accent-soft:#cde2fb;
+    --amber:#b26b00; --amber-bg:#fbeecb; --amber-line:#eda100;
+    --good:#0a7a0a; --danger:#b3261e;
+    --ambiguous:#a7a59d; --ambiguous-bg:#e7e6e0;
+    --v1:#2a78d6; --v2:#1baf7a; --v3:#eb6834; --v4:#4a3aa7; --v5:#e34948;
+    --radius:10px; --bar-radius:4px;
+    --shadow:0 1px 2px rgba(11,11,11,.05),0 6px 20px rgba(11,11,11,.04);
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){ :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --ink:#fff; --secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-soft:#184f95;
+    --amber:#f2c14e; --amber-bg:#332a12; --amber-line:#c98500;
+    --good:#0ca30c; --danger:#e66767;
+    --ambiguous:#7c7a73; --ambiguous-bg:#2c2c2a;
+    --v1:#3987e5; --v2:#199e70; --v3:#d95926; --v4:#9085e9; --v5:#e66767;
+  }}
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#222220;
+    --ink:#fff; --secondary:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-soft:#184f95;
+    --amber:#f2c14e; --amber-bg:#332a12; --amber-line:#c98500;
+    --good:#0ca30c; --danger:#e66767;
+    --ambiguous:#7c7a73; --ambiguous-bg:#2c2c2a;
+    --v1:#3987e5; --v2:#199e70; --v3:#d95926; --v4:#9085e9; --v5:#e66767;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{background:var(--page); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased}
+  button{font-family:inherit}
+
+  header.app{position:sticky; top:0; z-index:20; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow)}
+  .bar{display:flex; align-items:center; gap:12px 16px; padding:10px 20px; max-width:1400px; margin:0 auto; flex-wrap:wrap}
+  @media(max-width:560px){ .bar .spacer{flex-basis:100%; height:0} .snapinfo{text-align:left} nav.tabs{order:3} }
+  .brand{display:flex; align-items:baseline; gap:10px; font-weight:650; letter-spacing:-.01em}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
+  .brand small{font-weight:450; color:var(--muted); letter-spacing:0}
+  nav.tabs{display:flex; gap:4px; margin-left:8px}
+  nav.tabs button{border:0; background:transparent; color:var(--secondary); padding:7px 13px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:550; display:flex; align-items:center; gap:7px}
+  nav.tabs button:hover{background:var(--surface-2); color:var(--ink)}
+  nav.tabs button[aria-current="true"]{background:var(--accent); color:#fff}
+  nav.tabs button[disabled]{opacity:.4; cursor:not-allowed}
+  nav.tabs .count{font-size:11px; font-weight:700; background:var(--surface-2); color:var(--secondary); border-radius:999px; padding:1px 7px; min-width:20px; text-align:center}
+  nav.tabs button[aria-current="true"] .count{background:rgba(255,255,255,.25); color:#fff}
+  .spacer{flex:1}
+  .snapinfo{color:var(--muted); font-size:12.5px; text-align:right; line-height:1.3}
+  .snapinfo b{color:var(--secondary); font-weight:600}
+  .icon-btn{border:1px solid var(--border); background:var(--surface); color:var(--secondary); width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px}
+
+  main{max-width:1400px; margin:0 auto; padding:22px 20px 60px}
+  h2,h3{letter-spacing:-.015em; margin:0}
+  .banner{background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:10px 14px; font-size:13px; color:var(--secondary); display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap}
+  .banner b{color:var(--ink)}
+  .btn{border:1px solid var(--border); background:var(--surface); color:var(--ink); padding:8px 15px; border-radius:9px; font-weight:600; font-size:14px; cursor:pointer}
+  .btn.ghost{background:transparent} .btn.primary{background:var(--accent); color:#fff; border-color:transparent}
+  .empty-state{text-align:center; color:var(--muted); padding:60px 20px}
+
+  .cmp{display:grid; grid-template-columns:300px 1fr; gap:20px; align-items:start}
+  @media(max-width:820px){ .cmp{grid-template-columns:1fr} }
+  .picker{position:sticky; top:74px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; max-height:calc(100vh - 96px); display:flex; flex-direction:column}
+  .picker .ptop{padding:12px 12px 10px; border-bottom:1px solid var(--border)}
+  .search{width:100%; border:1px solid var(--border); background:var(--page); color:var(--ink); border-radius:8px; padding:8px 11px; font-size:14px; outline:none}
+  .search:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .seg{display:flex; gap:4px; margin-top:10px; background:var(--surface-2); padding:3px; border-radius:8px}
+  .seg button{flex:1; border:0; background:transparent; color:var(--secondary); padding:6px 8px; border-radius:6px; font-size:12.5px; font-weight:600; cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+  .plist{overflow-y:auto; padding:6px}
+  .pitem{width:100%; text-align:left; border:0; background:transparent; color:var(--ink); padding:9px 10px; border-radius:8px; cursor:pointer; display:flex; flex-direction:column; gap:2px}
+  .pitem:hover{background:var(--surface-2)}
+  .pitem[aria-current="true"]{background:var(--accent-soft)}
+  .pitem .pn{font-weight:600; font-size:14px; display:flex; align-items:center; gap:6px}
+  .pitem .pmeta{font-size:11.5px; color:var(--muted); display:flex; gap:8px}
+  .pitem .rv{width:7px;height:7px;border-radius:50%;background:var(--amber-line); display:inline-block; flex:none}
+  .plist .empty{padding:18px 12px; color:var(--muted); font-size:13px}
+
+  .panels-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap}
+  .panels-head h2{font-size:22px; font-weight:700}
+  .panels-head .sub{color:var(--secondary); font-size:13px; margin-top:3px}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; color:var(--muted); font-size:12px; align-items:center}
+  .legend .k{display:inline-flex; align-items:center; gap:6px}
+  .legend .sw{width:22px;height:10px;border-radius:3px;display:inline-block}
+  .legend .sw.acc{background:var(--accent)}
+  .legend .sw.amb{background:var(--ambiguous-bg); background-image:repeating-linear-gradient(135deg,var(--ambiguous) 0 2px,transparent 2px 6px)}
+
+  .panels{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px}
+  .panel{background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--vaccent,var(--accent)); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px 15px 15px; min-width:0}
+  .panel h3{font-size:15px; font-weight:680; display:flex; align-items:center; gap:8px}
+  .panel h3 .vd{width:9px;height:9px;border-radius:50%;background:var(--vaccent,var(--accent))}
+  .panel .phead-meta{color:var(--muted); font-size:11.5px; margin:3px 0 12px}
+  .notlist{color:var(--muted); font-size:13px; font-style:italic; padding:14px 2px; border:1px dashed var(--border); border-radius:8px; text-align:center; margin-top:2px}
+  .rowgroup{margin:0 0 12px}
+  .rowgroup:last-child{margin-bottom:2px}
+  .rowname{font-size:12px; color:var(--secondary); font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+  .chip{font-size:10px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; padding:1px 6px; border-radius:999px; background:var(--surface-2); color:var(--muted); border:1px solid var(--border)}
+  .chip.hh{color:var(--v4); border-color:color-mix(in srgb,var(--v4) 30%,transparent)}
+  .chip.amb{background:var(--ambiguous-bg); color:var(--secondary)}
+
+  .mrow{display:grid; grid-template-columns:58px 1fr 60px; align-items:center; gap:9px; margin:5px 0}
+  .mlabel{font-size:11.5px; color:var(--secondary); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .track{position:relative; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--bar-radius); height:20px; overflow:hidden}
+  .fill{height:100%; background:var(--accent); border-radius:0 3px 3px 0; transition:width .35s cubic-bezier(.2,.7,.2,1)}
+  .fill.amb{background:var(--ambiguous-bg); background-image:repeating-linear-gradient(135deg,var(--ambiguous) 0 2px,transparent 2px 6px)}
+  .mprice{font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; color:var(--ink)}
+  .mprice.amb{color:var(--secondary); text-decoration:line-through; text-decoration-thickness:1.5px}
+  .matchnote{margin-top:10px; font-size:11.5px; color:var(--amber); background:var(--amber-bg); border:1px solid var(--amber-line); border-radius:7px; padding:6px 9px; display:flex; gap:7px; align-items:flex-start}
+
+  .rev-section{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:16px; overflow:hidden}
+  .rev-section>summary{list-style:none; cursor:pointer; padding:14px 16px; display:flex; align-items:center; gap:12px}
+  .rev-section>summary::-webkit-details-marker{display:none}
+  .rev-section summary .caret{color:var(--muted); transition:.15s; font-size:12px}
+  .rev-section[open] summary .caret{transform:rotate(90deg)}
+  .rev-section summary h3{font-size:15px; font-weight:680}
+  .rev-section summary .rc{font-size:12px; font-weight:700; background:var(--amber-bg); color:var(--amber); border:1px solid var(--amber-line); border-radius:999px; padding:1px 9px}
+  .rev-why{padding:0 16px 12px; color:var(--secondary); font-size:13.5px; max-width:90ch; margin-top:-2px}
+  .tablewrap{overflow-x:auto; max-width:100%}
+  table.rev{width:100%; min-width:560px; border-collapse:collapse}
+  table.rev th,table.rev td{padding:8px 16px; text-align:left; border-top:1px solid var(--border); font-size:13px}
+  table.rev th{background:var(--surface-2); color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em}
+  table.rev .vn{color:var(--secondary)}
+  table.rev .mm{font-variant-numeric:tabular-nums}
+  table.rev td.ract{text-align:right; white-space:nowrap; width:1%}
+  tr.is-done td{opacity:.55}
+  .rev-act{cursor:pointer; border:1px solid var(--border); background:var(--surface); border-radius:7px; padding:3px 10px; font-size:12px; font-weight:700; line-height:1.4}
+  .rev-act.ok{color:var(--good)} .rev-act.ok:hover{background:color-mix(in srgb,var(--good) 12%,transparent); border-color:var(--good)}
+  .rev-act.undo{color:var(--secondary)} .rev-act.undo:hover{background:var(--surface-2)}
+  .rev-act.clearall{margin-left:auto; padding:2px 9px}
+  .rev-section summary{gap:10px}
+  .rev-toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap}
+  .rev-counts{font-size:14px; color:var(--secondary)} .rev-counts b{color:var(--ink); font-size:16px}
+  .rev-tools{display:flex; gap:8px; flex-wrap:wrap}
+  .rev-tools .btn{padding:6px 12px; font-size:13px}
+
+  .drop{display:block; border:2px dashed var(--baseline); border-radius:14px; background:var(--surface); text-align:center; padding:44px 24px; transition:.15s; cursor:pointer}
+  .drop:hover,.drop.over{border-color:var(--accent); background:var(--accent-soft)}
+  .drop .big{font-size:17px; font-weight:650; margin-top:8px}
+  .drop .small{color:var(--muted); font-size:13px; margin-top:6px}
+  .note{font-size:13px; color:var(--secondary); background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:11px 13px; margin-top:16px}
+  .note code{font-family:var(--mono); font-size:12px; background:var(--page); padding:1px 5px; border-radius:5px}
+  .screen-head{margin:2px 0 18px}
+  .screen-head h2{font-size:20px; font-weight:680}
+  .screen-head p{color:var(--secondary); margin:6px 0 0; max-width:72ch; font-size:14px}
+  .up-head{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap}
+  .settings-fab{border:1px solid var(--border); background:var(--surface); color:var(--secondary); border-radius:9px; padding:8px 14px; font-weight:600; font-size:14px; cursor:pointer; display:inline-flex; gap:8px; align-items:center; white-space:nowrap}
+  .settings-fab:hover{border-color:var(--baseline); color:var(--ink)}
+  .settings-fab .dotset{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+  .ov{position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px}
+  .ov[hidden]{display:none}
+  .scard{background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35); width:min(460px,100%); padding:20px}
+  .scard h3{font-size:16px; font-weight:680; margin-bottom:4px}
+  .scard p.hint{color:var(--muted); font-size:12.5px; margin:0 0 16px; line-height:1.4}
+  .fld{margin-bottom:14px}
+  .fld label{display:block; font-size:12.5px; font-weight:600; color:var(--secondary); margin-bottom:5px}
+  .fld input,.fld select{width:100%; border:1px solid var(--border); background:var(--page); color:var(--ink); border-radius:8px; padding:9px 11px; font-size:14px; outline:none; font-family:inherit}
+  .fld input:focus,.fld select:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .fld .sub{font-size:11.5px; color:var(--muted); margin-top:5px}
+  .scard .actions{display:flex; gap:10px; justify-content:flex-end; align-items:center; margin-top:6px}
+  .saved{font-size:12px; color:var(--good); font-weight:600; margin-right:auto}
+
+  .staged{margin-top:18px; display:flex; flex-direction:column; gap:8px}
+  .staged .srow{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 12px}
+  .staged .sfile{font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0}
+  .staged .scount{color:var(--muted); font-size:12px; white-space:nowrap}
+  .staged select{border:1px solid var(--border); background:var(--page); color:var(--ink); border-radius:8px; padding:6px 9px; font-size:13px; font-family:inherit}
+  .staged .srm{border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 7px; border-radius:6px; line-height:1}
+  .staged .srm:hover{color:var(--danger); background:var(--surface-2)}
+  .up-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; align-items:center}
+  .enrich-log{font-family:var(--mono); font-size:12px; color:var(--secondary); background:var(--page); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin:6px 0 16px; max-height:240px; min-height:60px; overflow:auto; white-space:pre-wrap; line-height:1.55}
+  .enrich-log .err{color:var(--danger)} .enrich-log .ok{color:var(--good); font-weight:600}
+  .spin{display:inline-block; width:13px;height:13px;border:2px solid var(--accent-soft); border-top-color:var(--accent); border-radius:50%; animation:sp .7s linear infinite; vertical-align:-1px; margin-right:7px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .updbar{position:fixed; left:0; right:0; bottom:0; z-index:60; display:none; gap:14px; align-items:center; justify-content:center; flex-wrap:wrap; background:var(--accent); color:#fff; padding:10px 16px; font-size:13.5px; box-shadow:0 -2px 14px rgba(0,0,0,.18)}
+  .updbar[data-show="1"]{display:flex}
+  .updbar b{font-weight:700}
+  .updbar button{border:1px solid rgba(255,255,255,.6); background:rgba(255,255,255,.14); color:#fff; padding:6px 13px; border-radius:8px; font-weight:600; font-size:13px; cursor:pointer}
+  .updbar button:hover{background:rgba(255,255,255,.26)}
+  .updbar button:disabled{opacity:.6; cursor:default}
+  .updbar .u-x{border:0; background:transparent; opacity:.85; font-size:16px; padding:2px 8px}
+  .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="bar">
+    <div class="brand"><span class="dot"></span> Price&nbsp;Comparison <small>· till pricing by measure</small></div>
+    <nav class="tabs" id="tabs" aria-label="Screens">
+      <button data-nav="upload">Upload</button>
+      <button data-nav="comparison">Comparison</button>
+      <button data-nav="review">Review<span class="count" id="reviewCount">0</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="snapinfo" id="snapinfo"></div>
+    <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+<main id="app" aria-live="off"></main>
+<input type="file" id="fileInput" accept=".csv,.json,application/json,text/csv" multiple class="visually-hidden" />
+
+<div class="ov" id="settingsOv" hidden role="dialog" aria-modal="true" aria-label="AI settings">
+  <div class="scard">
+    <h3>AI settings</h3>
+    <p class="hint">Used only for the optional enrichment step — grouping products into a few departments and matching similar names across venues. Your key is stored locally in this browser (localStorage) and is only sent to Anthropic when you run enrichment.</p>
+    <div class="fld">
+      <label for="setKey">Anthropic API key</label>
+      <input id="setKey" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
+      <div class="sub">Kept on this device only. Never uploaded anywhere else.</div>
+    </div>
+    <div class="fld">
+      <label for="setModel">Model for enrichment</label>
+      <select id="setModel">
+        <option value="claude-sonnet-5">Claude Sonnet 5 — recommended (~$0.40 for all venues)</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — cheapest (~$0.20)</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8 — max accuracy (~$1–2)</option>
+      </select>
+    </div>
+    <div class="actions">
+      <span class="saved" id="setSaved" hidden>Saved ✓</span>
+      <button class="btn ghost" id="settingsClose" type="button">Close</button>
+      <button class="btn primary" id="settingsSave" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="enrichOv" hidden role="dialog" aria-modal="true" aria-label="AI enrichment">
+  <div class="scard">
+    <h3 id="enrichTitle">Enriching with AI…</h3>
+    <p class="hint" id="enrichHint">Grouping products into departments and matching the same product across venues. Runs from your browser using your saved key — nothing is stored on any server.</p>
+    <div class="enrich-log" id="enrichLog"></div>
+    <div class="actions">
+      <button class="btn primary" id="enrichClose" type="button" hidden>Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="updbar" id="updbar" role="status" aria-live="polite"></div>
+
+<script src="catalogue.js"></script>
+<script>
+"use strict";
+/* Local price-comparison viewer — no backend, no network.
+   Data: an array of products, one per (venue, till item), each with a list of
+   priced measures. Built from the Till Pricing CSVs — in-browser here (identical
+   logic) or offline via scripts/build_catalogue.py. */
+
+const VENUE_ACCENTS=["var(--v1)","var(--v2)","var(--v3)","var(--v4)","var(--v5)"];
+const FLAG_META={
+  measure_ambiguous:{t:"Measures need confirming", why:"The till lists more than one price for this item but doesn’t label the servings. We inferred the measures from the price pattern — check they’re right before trusting the gap."},
+  price_suspect:{t:"Price looks wrong", why:"Two servings of the same item are wildly apart (a single/double or pint/half can’t differ ~8×), or a price is implausibly large — most likely a typo in the till itself. Verify against the real menu."},
+  package:{t:"Package / bottomless", why:"A bottomless or bundle line (Btm / Brz). The price covers a package, so per-serve it isn’t comparable to an à-la-carte item."},
+  modifier:{t:"Modifier / add-on", why:"A “+” add-on (a mixer or side), not a standalone product. Its price is a supplement."},
+  happy_hour:{t:"Happy-hour line", why:"A separate happy-hour price rung on its own button — kept apart from the standard price."},
+  size_in_name:{t:"Size in the name", why:"The name already encodes a size/format. Confirm you’re comparing like with like."}
+};
+const REVIEW_FLAG_ORDER=["price_suspect","measure_ambiguous"];
+const DEPT_ORDER=["Beer & Cider","Wine","Sparkling","Spirits","Liqueurs","Cocktails","Soft & Mixers","Hot Drinks","Food","Snacks","Packages & Bottomless","Other"];
+
+const $=(s,el=document)=>el.querySelector(s);
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function money(n){ if(n==null||!isFinite(n))return"—"; const a=Math.abs(n),[i,d]=a.toFixed(2).split(".");
+  return (n<0?"-":"")+"£"+i.replace(/\B(?=(\d{3})+(?!\d))/g,",")+"."+d; }
+function titleCase(s){return String(s).replace(/\b\w/g,c=>c.toUpperCase())}
+
+/* ---------- AI settings (local only) ---------- */
+const SETTINGS={
+  get(){ return {apiKey:(localStorage.getItem("pc.apiKey")||""), model:(localStorage.getItem("pc.model")||"claude-sonnet-5")}; },
+  set(k,m){ localStorage.setItem("pc.apiKey",k); localStorage.setItem("pc.model",m); }
+};
+function openSettings(){ const s=SETTINGS.get(); const k=$("#setKey"),m=$("#setModel"); if(k)k.value=s.apiKey; if(m)m.value=s.model;
+  const sv=$("#setSaved"); if(sv)sv.hidden=true; const ov=$("#settingsOv"); if(ov){ov.hidden=false; if(k)k.focus();} }
+function closeSettings(){ const ov=$("#settingsOv"); if(ov)ov.hidden=true; }
+function saveSettings(){ SETTINGS.set(($("#setKey").value||"").trim(), $("#setModel").value); const sv=$("#setSaved"); if(sv)sv.hidden=false;
+  const b=document.querySelector('[data-action="open-settings"]'); if(b) b.innerHTML='<span class="dotset" title="key saved"></span>⚙ AI settings'; }
+
+/* ---------- review triage state (local, persisted) ---------- */
+const REVIEWED={
+  _s(){ try{return new Set(JSON.parse(localStorage.getItem("pc.reviewed")||"[]"));}catch(e){return new Set();} },
+  has(k){ return this._s().has(k); },
+  add(k){ const s=this._s(); s.add(k); localStorage.setItem("pc.reviewed",JSON.stringify([...s])); },
+  remove(k){ const s=this._s(); s.delete(k); localStorage.setItem("pc.reviewed",JSON.stringify([...s])); },
+  clear(){ localStorage.removeItem("pc.reviewed"); },
+  count(){ return this._s().size; }
+};
+function rkey(r){ return r.venue+"|"+r.name_raw; }
+
+/* base-key grouping key (mirrors the builder) + fuzzy similarity for panels */
+function bigrams(s){s=String(s).replace(/\s+/g,"");const g=new Set();for(let i=0;i<s.length-1;i++)g.add(s.slice(i,i+2));return g}
+function dice(a,b){if(a===b)return 1;const A=bigrams(a),B=bigrams(b);if(!A.size||!B.size)return 0;let n=0;for(const x of A)if(B.has(x))n++;return 2*n/(A.size+B.size)}
+function nameSim(a,b){if(a===b)return 1;const A=a.split(" ").filter(Boolean),B=b.split(" ").filter(Boolean);
+  const As=new Set(A),Bs=new Set(B);const[short,long]=A.length<=B.length?[As,Bs]:[Bs,As];
+  let sub=short.size>0;for(const x of short)if(!long.has(x)){sub=false;break;}const d=dice(a,b);return sub?0.9+0.1*d:d}
+const FUZZY_THRESHOLD=0.72;
+
+/* ---------- model ---------- */
+function normalizeRow(r){
+  const measures=(Array.isArray(r.measures)?r.measures:[]).map(m=>({label:String(m.label||""),price:Number(m.price)||0}))
+    .filter(m=>m.price>0).sort((a,b)=>b.price-a.price);
+  return { venue:String(r.venue), name_raw:String(r.name_raw||""), name_norm:String(r.name_norm||String(r.name_raw||"").toLowerCase()),
+    base_key:String(r.base_key||""), group:String(r.group||r.base_key||""), dept_code:String(r.dept_code||""), department:String(r.department||"Other"), measures,
+    flags:Array.isArray(r.flags)?r.flags:[], needs_review:!!r.needs_review };
+}
+function pickDisplayName(rows){
+  const clean=rows.filter(r=>!r.flags.some(f=>["happy_hour","modifier","package"].includes(f)));
+  const pool=clean.length?clean:rows;
+  const freq={}; pool.forEach(r=>{freq[r.name_raw]=(freq[r.name_raw]||0)+1});
+  return pool.slice().sort((a,b)=>(freq[b.name_raw]-freq[a.name_raw])||(b.name_raw.length-a.name_raw.length))[0].name_raw;
+}
+function buildModel(raw){
+  const rows=raw.map(normalizeRow).filter(r=>r.measures.length);
+  const venues=[],vseen=new Set();
+  for(const r of rows){ if(!vseen.has(r.venue)){vseen.add(r.venue);venues.push(r.venue);} }
+  const venueRows=new Map(); venues.forEach(v=>venueRows.set(v,[]));
+  for(const r of rows) venueRows.get(r.venue).push(r);
+  const products=new Map();
+  for(const r of rows){
+    const k=r.group||r.base_key||r.name_norm;
+    let p=products.get(k);
+    if(!p){p={key:k,rows:[],byVenue:new Map(),venuesExact:new Set()};products.set(k,p);}
+    p.rows.push(r); p.venuesExact.add(r.venue);
+    if(!p.byVenue.has(r.venue))p.byVenue.set(r.venue,[]);
+    p.byVenue.get(r.venue).push(r);
+  }
+  for(const p of products.values()){
+    p.comparable=p.venuesExact.size>=2;
+    p.displayName=pickDisplayName(p.rows);
+    p.needsReview=p.rows.some(r=>r.needs_review);
+    const dc={}; p.rows.forEach(r=>{dc[r.department]=(dc[r.department]||0)+1;});
+    p.department=Object.keys(dc).sort((a,b)=>dc[b]-dc[a])[0]||"Other";
+  }
+  let def=null;
+  const comp=[...products.values()].filter(p=>p.comparable);
+  const pool=comp.length?comp:[...products.values()];
+  for(const p of pool){ const sc=p.venuesExact.size*100+p.rows.length; const ds=def?def.venuesExact.size*100+def.rows.length:-1;
+    if(!def||sc>ds||(sc===ds&&p.key<def.key)) def=p; }
+  return {rows,venues,venueRows,products,defaultProductKey:def?def.key:null};
+}
+function fuzzyMatch(product,venue,model){
+  const cands=model.venueRows.get(venue)||[]; let best=null,bestSim=0;
+  for(const r of cands){ const gk=r.group||r.base_key||r.name_norm; if(gk===product.key)continue; const s=nameSim(product.key,gk); if(s>bestSim){bestSim=s;best=gk;} }
+  if(best&&bestSim>=FUZZY_THRESHOLD){ const bars=cands.filter(r=>(r.group||r.base_key||r.name_norm)===best); return {rows:bars,matchedName:pickDisplayName(bars)}; }
+  return null;
+}
+function panelData(product,venue,model){
+  const exact=product.byVenue.get(venue);
+  if(exact&&exact.length) return {venue,type:"exact",rows:exact};
+  const fz=fuzzyMatch(product,venue,model);
+  if(fz) return {venue,type:"fuzzy",rows:fz.rows,matchedName:fz.matchedName};
+  return {venue,type:"none",rows:[]};
+}
+
+/* ========================================================================
+   CSV INGEST — in-browser, byte-for-byte parity with scripts/build_catalogue.py.
+   Header-mapped fields (never positional), same measure/flag/base_key rules,
+   so a catalogue built here is identical to the Python one.
+   ======================================================================== */
+const CANON_VENUES=["68 & Shanghai","Burlock","FAM","LUCY","TLT"];
+const PRICE_COLS=["Price1L1","Price2L1","Price3L1","Price4L1"];
+const SIZE_TOKEN=/(\d+\s?ml|\d+\s?cl|\bbtl\b|\bbottle\b|\btower\b|\bpint\b|\bpt\b|\bcan\b|\bjug\b|\bcarafe\b|\bmagnum\b|\bhalf\b|\bschooner\b)/i;
+const NOISE=/^(SPARE|PLU|ALLERGEN|IN ORDER|ALL TOGETHER|NEAT|TV Hire|Tarot|Crockery|Main & side|Small plates|Away|Supplement|Set Menu|Course|Random|COMP\b)/i;
+/* NB: JS \b is ASCII-only; Python's is Unicode-aware. On mojibake like "2forÂ£12"
+   the char after "for" is a Unicode letter, so Python sees no boundary and does
+   NOT read a bucket. Emulate Unicode word-boundaries with \p{L}\p{N}_ lookarounds. */
+const BUCKET=/bucket\s*of\s*(\d+)|(\d+)\s*for(?![\p{L}\p{N}_])|(?<![\p{L}\p{N}_])x\s*(\d+)(?![\p{L}\p{N}_])/iu;
+
+function iNum(t){ const v=parseFloat(String(t==null?"":t).replace(/,/g,"").replace(/£/g,"").trim()); return isFinite(v)?v:null; }
+function iRound2(x){ return Math.round((x+1e-9)*100)/100; }
+function iSizeToken(name){ const m=SIZE_TOKEN.exec(name); return m?m[1].trim().toLowerCase():""; }
+function iNormServe(alt){ const a=(alt||"").toLowerCase().trim(); if(!a)return"";
+  if(/½\s*pt|half|1\/2\s*pt/.test(a))return"half";
+  if(/pint|\bpt\b/.test(a))return"pint";
+  if(/double|\bdbl\b/.test(a))return"double";
+  if(/single|\bsgl\b|shot/.test(a))return"single";
+  if(/mixer/.test(a))return"mixer";
+  if(/bottle|\bbtl\b|^b$/.test(a))return"bottle"; return""; }
+function iBucketQty(name){ const m=BUCKET.exec(name); if(!m)return null; for(let i=1;i<m.length;i++){ if(m[i])return parseInt(m[i],10);} return null; }
+
+function iDeriveMeasures(prices,sel,name){
+  const flags=[];
+  const P=prices.filter(p=>p&&p>0).map(iRound2);
+  const n=P.length, serve=iNormServe(sel), st=iSizeToken(name);
+  if(n===0) return [[],flags];
+  const bq=iBucketQty(name);
+  if(bq&&n===1){ flags.push("package"); return [[{label:"bucket ×"+bq,price:P[0]}],flags]; }
+  let ms;
+  if(n===1){ ms=[{label: st || (serve==="bottle"?"bottle":"each"), price:P[0]}]; }
+  else if(n===2){ const mx=Math.max(...P),mn=Math.min(...P);
+    if(serve==="half"||serve==="pint") ms=[{label:"pint",price:mx},{label:"half",price:mn}];
+    else if(serve==="single"||serve==="double") ms=[{label:"single",price:mn},{label:"double",price:mx}];
+    else if(serve==="mixer") ms=[{label:"unit",price:mx},{label:"mixer",price:mn}];
+    else { ms=[{label:"large",price:mx},{label:"small",price:mn}]; flags.push("measure_ambiguous"); } }
+  else if(n===3){ const s=[...P].sort((a,b)=>a-b);
+    if(serve==="single"||serve==="double"||(s[2]>=60&&s[2]>=4*s[1])){
+      ms=[{label:"single",price:s[0]},{label:"double",price:s[1]},{label:"bottle",price:s[2]}];
+      if(serve!=="single"&&serve!=="double") flags.push("measure_ambiguous");
+    } else if(serve==="half"||serve==="pint"){
+      ms=[{label:"pint",price:s[2]},{label:"half",price:s[1]},{label:"other",price:s[0]}]; flags.push("measure_ambiguous");
+    } else { ms=[{label:"bottle",price:s[2]},{label:"250ml",price:s[1]},{label:"175ml",price:s[0]}]; } }
+  else { const s=[...P].sort((a,b)=>b-a);
+    ms=[{label:"bottle",price:s[0]},{label:"250ml",price:s[1]},{label:"175ml",price:s[2]},{label:"125ml",price:s[3]}]; }
+  for(const m of ms){ if(m.price>2000||m.price<0.05){ flags.push("price_suspect"); break; } }
+  if(n===2){ const mn=Math.min(...P),mx=Math.max(...P); if(mn>0&&mx/mn>8) flags.push("price_suspect"); }
+  return [ms,[...new Set(flags)].sort()];
+}
+function iProductFlags(name){ const f=[];
+  if(/^\s*\+/.test(name)) f.push("modifier");
+  if(/^(brz|btm)\b/i.test(name)) f.push("package");
+  if(/\b(hh|happy\s*hour)\b/i.test(name)) f.push("happy_hour");
+  if(SIZE_TOKEN.test(name)) f.push("size_in_name");
+  return f; }
+function iNameNorm(s){ return s.toLowerCase().replace(/\s+/g," ").trim(); }
+function iBaseKey(nn){ let s=" "+nn+" ";
+  s=s.replace(/\s\+\s*/g," ");
+  s=s.replace(/\b(hh|happy\s*hour)\b/g," ");
+  s=s.replace(/\b\d+\s?(ml|cl|l)\b/g," ");
+  s=s.replace(/\b(tower|btl|bottle|pint|pt|can|half|double|single|sgl|magnum|glass|carafe|litre|schooner)\b/g," ");
+  s=s.replace(/\s+/g," ").trim(); return s||nn.trim(); }
+
+/* RFC-4180-ish CSV: quoted fields, "" escapes, CRLF, BOM. */
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const rows=[]; let field="",row=[],inQ=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(inQ){ if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; } else field+=c; }
+    else{ if(c==='"') inQ=true;
+      else if(c===',') { row.push(field); field=""; }
+      else if(c==='\n'){ row.push(field); field=""; rows.push(row); row=[]; }
+      else if(c==='\r'){ /* fold CRLF; ignore lone CR */ }
+      else field+=c; } }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+function csvToObjects(text){
+  const rows=parseCSV(text); if(!rows.length) return [];
+  const header=rows[0].map(h=>String(h).trim());
+  const objs=[];
+  for(let i=1;i<rows.length;i++){ const r=rows[i];
+    if(r.length===1&&r[0]==="") continue;
+    const o={}; for(let j=0;j<header.length;j++) o[header[j]]=r[j]!==undefined?r[j]:"";
+    objs.push(o); }
+  return objs;
+}
+/* Venue from the filename (fuzzy on the known five, else the cleaned stem). Editable in the UI. */
+function venueFromFilename(name){
+  const low=name.toLowerCase();
+  if(/(^|[^a-z0-9])68([^a-z0-9]|$)|shanghai/.test(low)) return "68 & Shanghai";
+  if(/burlock/.test(low)) return "Burlock";
+  if(/\bfam\b/.test(low)) return "FAM";
+  if(/lucy/.test(low)) return "LUCY";
+  if(/\btlt\b/.test(low)) return "TLT";
+  const stem=name.replace(/\.csv$/i,"").replace(/[_\s-]*pricing\s*$/i,"").trim();
+  return stem||name;
+}
+function buildProductsFromRows(objs,venue){
+  const out=[];
+  for(const row of objs){
+    const name=String(row["Name"]||"").trim();
+    if(!name||name.length<2||NOISE.test(name)) continue;
+    if(name.toLowerCase().includes("xxx")) continue;
+    const prices=PRICE_COLS.map(c=>iNum(row[c])||0);
+    if(!prices.some(p=>p&&p>0)) continue;
+    const sel=String(row["Alt Mod Text 1"]||row["Alt Mod Text 2"]||"").trim();
+    const [measures,mflags]=iDeriveMeasures(prices,sel,name);
+    if(!measures.length) continue;
+    const flags=[...new Set([...iProductFlags(name),...mflags])].sort();
+    const nn=iNameNorm(name), bk=iBaseKey(nn);
+    out.push({venue,name_raw:name,name_norm:nn,base_key:bk,group:bk,
+      dept_code:String(row["Department Link"]||"").trim(),department:"Other",
+      measures,flags,needs_review:flags.some(x=>x==="measure_ambiguous"||x==="price_suspect")});
+  }
+  return out;
+}
+
+/* ========================================================================
+   AI ENRICH — optional, in-browser. Direct Anthropic call with the user's
+   saved key. Two passes: (1) map each venue's till dept-codes to a canonical
+   department; (2) per department, cluster same-product-different-name across
+   venues. Both degrade gracefully to base_key / "Other" on any failure.
+   ======================================================================== */
+async function callClaude(opts){
+  const {apiKey,model}=SETTINGS.get();
+  if(!apiKey) throw new Error("Add your Anthropic API key in ⚙ AI settings first.");
+  const body={model, max_tokens:opts.maxTokens||2048, messages:opts.messages};
+  if(opts.system) body.system=opts.system;
+  let res;
+  try{
+    res=await fetch("https://api.anthropic.com/v1/messages",{ method:"POST",
+      headers:{ "content-type":"application/json","x-api-key":apiKey,
+        "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
+      body:JSON.stringify(body) });
+  }catch(e){ throw new Error("Network/CORS error reaching Anthropic — check the key and connection."); }
+  if(!res.ok){ let t=""; try{t=await res.text();}catch(_){}
+    throw new Error("Anthropic "+res.status+" — "+t.slice(0,160)); }
+  const data=await res.json();
+  return (data.content||[]).map(b=>b.text||"").join("");
+}
+function extractJSON(text){
+  let t=String(text).trim().replace(/^```(?:json)?/i,"").replace(/```\s*$/,"").trim();
+  const i=t.indexOf("{"), j=t.lastIndexOf("}");
+  if(i>=0&&j>i) t=t.slice(i,j+1);
+  return JSON.parse(t);
+}
+function deptInputFromRows(rows){
+  const m={};
+  for(const r of rows){ const code=r.dept_code; if(!code) continue;
+    (m[r.venue]=m[r.venue]||{}); const e=(m[r.venue][code]=m[r.venue][code]||{names:[],count:0});
+    e.count++; if(e.names.length<6&&!e.names.includes(r.name_raw)) e.names.push(r.name_raw); }
+  return m;
+}
+async function enrichDepartments(rows,log){
+  const input=deptInputFromRows(rows), venues=Object.keys(input);
+  if(!venues.length) return {};
+  const payload=venues.map(v=>{ const codes=input[v];
+    const lines=Object.keys(codes).map(c=>"  "+c+": "+codes[c].names.slice(0,6).join(" | ")).join("\n");
+    return "Venue "+v+":\n"+lines; }).join("\n\n");
+  const prompt="Each venue numbers its till departments differently. Map every (venue, department-code) to exactly ONE of these canonical departments:\n"+
+    DEPT_ORDER.join(", ")+"\n\nUse the sample product names to decide. Use \"Other\" only if truly none fit.\n\n"+payload+
+    "\n\nRespond with ONLY JSON, no prose: {\"<venue name>\":{\"<code>\":\"<Department>\"}} using the exact venue names and codes shown.";
+  log("Reading departments across "+venues.length+" venue"+(venues.length>1?"s":"")+"…");
+  const txt=await callClaude({messages:[{role:"user",content:prompt}],maxTokens:2000});
+  try{ return extractJSON(txt); }catch(e){ log("⚠ departments reply unparseable — keeping “Other”.",true); return {}; }
+}
+async function pairChunk(dept,chunk){
+  const list=chunk.map(e=>e.key+"\t"+e.rep+"\t["+[...e.venues].join(",")+"]").join("\n");
+  const prompt="These are "+dept+" products from bar venues. Each line: base_key <tab> example name <tab> venues.\n"+
+    "Cluster ONLY entries that are the SAME product written differently (typos, abbreviations, notation like \"&\"/\"n'\"). "+
+    "Keep genuinely different products apart — different brand, age, expression, size or flavour are NOT the same "+
+    "(e.g. \"tanqueray\" ≠ \"tanqueray 10\"; \"el dorado 3\" ≠ \"el dorado 12\").\n\n"+list+
+    "\n\nRespond with ONLY JSON, no prose: {\"groups\":[{\"canonical\":\"Display Name\",\"keys\":[\"key1\",\"key2\"]}]}. Only groups with 2+ keys; omit singletons.";
+  const txt=await callClaude({messages:[{role:"user",content:prompt}],maxTokens:4000});
+  let data; try{ data=extractJSON(txt); }catch(e){ return {}; }
+  const map={}, valid=new Set(chunk.map(e=>e.key));
+  for(const g of (data.groups||[])){ const keys=(g.keys||[]).filter(k=>valid.has(k)); if(keys.length<2) continue;
+    const canon=String(g.canonical||keys[0]).toLowerCase().replace(/\s+/g," ").trim();
+    const gid="grp:"+canon; for(const k of keys) map[k]=gid; }
+  return map;
+}
+async function enrichPairing(rows,log){
+  const byKey=new Map();
+  for(const r of rows){ let e=byKey.get(r.base_key);
+    if(!e){ e={key:r.base_key,venues:new Set(),names:{},dept:r.department}; byKey.set(r.base_key,e); }
+    e.venues.add(r.venue); e.names[r.name_raw]=(e.names[r.name_raw]||0)+1;
+    if(e.dept==="Other"&&r.department!=="Other") e.dept=r.department; }
+  const byDept={};
+  for(const e of byKey.values()){ e.rep=Object.keys(e.names).sort((a,b)=>e.names[b]-e.names[a])[0];
+    (byDept[e.dept]=byDept[e.dept]||[]).push(e); }
+  const pairMap={}, BATCH=140;
+  for(const dept of Object.keys(byDept)){ const items=byDept[dept]; if(items.length<2) continue;
+    items.sort((a,b)=>a.key.localeCompare(b.key));
+    for(let i=0;i<items.length;i+=BATCH){ const chunk=items.slice(i,i+BATCH);
+      log("Pairing "+dept+" "+(i+1)+"–"+Math.min(i+BATCH,items.length)+" of "+items.length+"…");
+      try{ Object.assign(pairMap,await pairChunk(dept,chunk)); }
+      catch(e){ log("⚠ "+dept+" batch skipped: "+(e.message||e),true); } } }
+  return pairMap;
+}
+async function runEnrich(){
+  if(!state.model) return;
+  if(!SETTINGS.get().apiKey){ openSettings(); return; }
+  openEnrich();
+  const log=(msg,err,ok)=>enrichLog(msg,err,ok);
+  try{
+    const rows=state.model.rows;
+    const deptMap=await enrichDepartments(rows,log);
+    for(const r of rows) r.department=(deptMap[r.venue]&&deptMap[r.venue][r.dept_code])||r.department||"Other";
+    const pairMap=await enrichPairing(rows,log);
+    for(const r of rows) r.group=pairMap[r.base_key]||r.base_key;
+    setModel(buildModel(rows), state.source||"uploaded CSVs");
+    log("Done ✓ — departments mapped, "+Object.keys(pairMap).length+" names paired across venues.",false,true);
+    enrichDone(); render();
+  }catch(e){ log("Failed: "+(e.message||e),true); enrichDone(); }
+}
+function openEnrich(){ const ov=$("#enrichOv"); if(!ov)return;
+  $("#enrichLog").innerHTML=""; $("#enrichClose").hidden=true;
+  $("#enrichTitle").innerHTML='<span class="spin"></span>Enriching with AI…'; ov.hidden=false; }
+function enrichLog(msg,err,ok){ const el=$("#enrichLog"); if(!el)return;
+  const d=document.createElement("div"); if(err)d.className="err"; else if(ok)d.className="ok";
+  d.textContent=msg; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+function enrichDone(){ const t=$("#enrichTitle"); if(t)t.textContent="AI enrichment"; const c=$("#enrichClose"); if(c)c.hidden=false; }
+function closeEnrich(){ const ov=$("#enrichOv"); if(ov)ov.hidden=true; }
+
+function downloadCatalogue(){ if(!state.model)return;
+  const arr=state.model.rows.map(r=>({venue:r.venue,name_raw:r.name_raw,name_norm:r.name_norm,base_key:r.base_key,
+    group:r.group,dept_code:r.dept_code,department:r.department,measures:r.measures,flags:r.flags,needs_review:r.needs_review}));
+  const blob=new Blob([JSON.stringify(arr)],{type:"application/json"});
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url; a.download="catalogue.json"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000); }
+
+const state={screen:"comparison",model:null,product:null,filter:"comparable",dept:"all",search:"",source:"",showReviewed:false,staged:[]};
+function setModel(m,src){state.model=m;state.source=src||"";state.product=m.defaultProductKey;state.filter="comparable";state.dept="all";state.search="";}
+function departmentsPresent(){ const s=new Set(state.model.rows.map(r=>r.department)); return DEPT_ORDER.filter(d=>s.has(d)); }
+
+/* ---------- render ---------- */
+function render(){
+  const app=$("#app"); updateChrome();
+  app.innerHTML = state.screen==="upload"?viewUpload(): state.screen==="review"?viewReview(): viewComparison();
+  postRender();
+}
+function updateChrome(){
+  const has=!!state.model;
+  document.querySelectorAll("#tabs button").forEach(b=>{const n=b.dataset.nav;
+    b.setAttribute("aria-current",state.screen===n?"true":"false"); if(n!=="upload")b.disabled=!has;});
+  $("#reviewCount").textContent = has?state.model.rows.filter(r=>r.needs_review&&!REVIEWED.has(rkey(r))).length:0;
+  const info=$("#snapinfo");
+  if(has){ info.innerHTML=`<b>${state.model.venues.length}</b> venues · <b>${state.model.rows.length}</b> products`; } else info.textContent="";
+}
+
+function productListHtml(){
+  const m=state.model; let arr=[...m.products.values()];
+  if(state.filter==="comparable") arr=arr.filter(p=>p.comparable);
+  if(state.dept!=="all") arr=arr.filter(p=>p.department===state.dept);
+  const q=state.search.trim().toLowerCase();
+  if(q) arr=arr.filter(p=>p.displayName.toLowerCase().includes(q)||p.key.includes(q));
+  arr.sort((a,b)=>a.displayName.localeCompare(b.displayName));
+  if(!arr.length) return `<div class="empty">No products match.</div>`;
+  return arr.slice(0,600).map(p=>{
+    const sel=p.key===state.product, n=p.venuesExact.size;
+    return `<button class="pitem" type="button" data-product="${esc(p.key)}" aria-current="${sel}">
+      <span class="pn">${p.needsReview?'<span class="rv" title="has items to review"></span>':""}${esc(p.displayName)}</span>
+      <span class="pmeta"><span>${esc(p.department)}</span><span>·</span><span>${n} ${n===1?"venue":"venues"}</span></span></button>`;
+  }).join("");
+}
+function barsHtml(rows,maxPrice){
+  return rows.map(r=>{
+    const amb=r.flags.includes("measure_ambiguous")||r.flags.includes("price_suspect");
+    const chips=r.flags.filter(f=>["happy_hour","package","modifier"].includes(f))
+      .map(f=>`<span class="chip ${f==="happy_hour"?"hh":""}" title="${esc(FLAG_META[f]?FLAG_META[f].t:f)}">${esc(f.replace("_"," "))}</span>`).join("");
+    const bars=r.measures.map(m=>{
+      const w=Math.max(4,Math.min(100,(m.price/maxPrice)*100));
+      const title=amb?` title="measures inferred — confirm"`:"";
+      return `<div class="mrow"${title}>
+        <div class="mlabel">${esc(m.label)}</div>
+        <div class="track"><div class="fill ${amb?"amb":""}" style="width:${w.toFixed(1)}%"></div></div>
+        <div class="mprice ${amb?"amb":""}">${money(m.price)}</div></div>`;
+    }).join("");
+    const showName = rows.length>1 || chips;
+    return `<div class="rowgroup">${showName?`<div class="rowname">${esc(r.name_raw)}${chips}</div>`:""}${bars}</div>`;
+  }).join("");
+}
+function panelHtml(pd,idx,maxPrice){
+  const accent=VENUE_ACCENTS[idx%VENUE_ACCENTS.length];
+  const head=`<h3><span class="vd"></span>${esc(pd.venue)}</h3>`;
+  let body,meta="";
+  if(pd.type==="none"){ body=`<div class="notlist">not on the list</div>`; }
+  else{
+    const nrows=pd.rows.length, nmeas=pd.rows.reduce((a,r)=>a+r.measures.length,0);
+    meta=`<div class="phead-meta">${nmeas} price${nmeas===1?"":"s"} across ${nrows} item${nrows===1?"":"s"}</div>`;
+    body=barsHtml(pd.rows,maxPrice);
+    if(pd.type==="fuzzy") body+=`<div class="matchnote"><span>⚠</span><span>matched from “<b>${esc(pd.matchedName)}</b>” by name similarity — confirm it’s the same product</span></div>`;
+  }
+  return `<section class="panel" style="--vaccent:${accent}">${head}${meta}${body}</section>`;
+}
+function comparisonMain(m,product){
+  if(!product) return `<div class="empty-state">No product selected.</div>`;
+  const panels=m.venues.map(v=>panelData(product,v,m));
+  // scale to the dearest *pour* (exclude full-bottle / bucket / retail formats) so
+  // glass bars stay readable; large formats clamp to a full bar.
+  const BIG=/^(bottle|bucket|70cl|75cl|1\.5l|litre|magnum)/i;
+  let maxPrice=0, hasBig=false;
+  for(const pd of panels) for(const r of pd.rows) for(const mm of r.measures){
+    if(BIG.test(mm.label)){ hasBig=true; continue; }
+    if(mm.price>maxPrice) maxPrice=mm.price;
+  }
+  if(maxPrice<=0){ for(const pd of panels) for(const r of pd.rows) for(const mm of r.measures) if(mm.price>maxPrice) maxPrice=mm.price; }
+  if(maxPrice<=0) maxPrice=1;
+  const nv=product.venuesExact.size;
+  return `<div class="panels-head">
+      <div><h2>${esc(product.displayName)}</h2>
+      <div class="sub">in <b>${nv}</b> of ${m.venues.length} venues${product.comparable?"":" · single venue"} · bars scaled to the dearest pour (${money(maxPrice)})${hasBig?" · bottles/buckets clamp to a full bar":""}</div></div>
+      <div class="legend"><span class="k"><span class="sw acc"></span> price by measure</span>
+      <span class="k"><span class="sw amb"></span> inferred / confirm</span></div>
+    </div><div class="panels">${panels.map((pd,i)=>panelHtml(pd,i,maxPrice)).join("")}</div>`;
+}
+function sourceBanner(){ if(!state.source)return"";
+  const hasKey=!!SETTINGS.get().apiKey;
+  return `<div class="banner"><span>Showing <b>${esc(state.source)}</b>. One snapshot per venue — comparison is across venues, by measure.</span>
+    <button class="btn ghost" data-action="enrich" type="button">${hasKey?"":"⚙ "}Enrich with AI</button>
+    <button class="btn ghost" data-action="download" type="button">Download</button>
+    <button class="btn ghost" data-nav="upload" type="button">Load different data</button></div>`; }
+function viewComparison(){
+  const m=state.model; const product=m.products.get(state.product)||m.products.get(m.defaultProductKey);
+  return `${sourceBanner()}
+  <div class="cmp">
+    <aside class="picker">
+      <div class="ptop">
+        <input class="search" id="search" type="search" placeholder="Search products…" value="${esc(state.search)}" aria-label="Search products"/>
+        <div class="seg" role="group" aria-label="Filter">
+          <button type="button" data-filter="comparable" aria-pressed="${state.filter==="comparable"}">Comparable</button>
+          <button type="button" data-filter="all" aria-pressed="${state.filter==="all"}">Everything</button>
+        </div>
+        <select class="search" id="deptSelect" aria-label="Department" style="margin-top:8px">
+          <option value="all">All departments</option>
+          ${departmentsPresent().map(d=>`<option value="${esc(d)}" ${state.dept===d?"selected":""}>${esc(d)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="plist" id="productList" role="group" aria-label="Products">${productListHtml()}</div>
+    </aside>
+    <div id="cmpMain">${comparisonMain(m,product)}</div>
+  </div>`;
+}
+
+function reviewRowHtml(r,flag,done){
+  const ms=r.measures.map(m=>`${esc(m.label)}&nbsp;${money(m.price)}`).join(" · ");
+  const others=r.flags.filter(f=>f!==flag&&f!=="size_in_name").map(f=>`<span class="chip">${esc(f.replace("_"," "))}</span>`).join(" ");
+  const k=esc(rkey(r));
+  const act=done
+    ? `<button class="rev-act undo" type="button" data-review-undo="${k}" title="Move back to pending">↩</button>`
+    : `<button class="rev-act ok" type="button" data-review-ok="${k}" title="Looks right — clear it">✓</button>`;
+  return `<tr class="${done?"is-done":""}"><td class="vn">${esc(r.venue)}</td><td>${esc(r.name_raw)}</td>
+    <td class="mm">${ms}</td><td>${others}</td><td class="ract">${act}</td></tr>`;
+}
+function viewReview(){
+  const m=state.model;
+  const rev=m.rows.filter(r=>r.needs_review);
+  const pending=rev.filter(r=>!REVIEWED.has(rkey(r)));
+  const done=rev.filter(r=>REVIEWED.has(rkey(r)));
+  const list=state.showReviewed?done:pending;
+
+  let sections="";
+  for(const flag of REVIEW_FLAG_ORDER){
+    const rows=list.filter(r=>r.flags.includes(flag));
+    if(!rows.length) continue;
+    rows.sort((a,b)=>a.venue.localeCompare(b.venue)||a.name_raw.localeCompare(b.name_raw));
+    const meta=FLAG_META[flag];
+    sections+=`<details class="rev-section" open>
+      <summary><span class="caret">▶</span><h3>${esc(meta.t)}</h3><span class="rc">${rows.length}</span>
+        ${state.showReviewed?"":`<button class="rev-act ok clearall" type="button" data-review-okall="${flag}" title="Clear all in this group">✓ all</button>`}</summary>
+      <div class="rev-why">${esc(meta.why)}</div>
+      <div class="tablewrap"><table class="rev"><thead><tr><th>Venue</th><th>Product</th><th>Inferred measures</th><th>Also</th><th></th></tr></thead>
+      <tbody>${rows.slice(0,500).map(r=>reviewRowHtml(r,flag,state.showReviewed)).join("")}</tbody></table></div></details>`;
+  }
+
+  const toolbar=`<div class="rev-toolbar">
+    <div class="rev-counts"><b>${pending.length}</b> pending${done.length?` · ${done.length} cleared`:""}</div>
+    <div class="rev-tools">
+      ${done.length?`<button class="btn ghost" type="button" id="reviewToggle">${state.showReviewed?"← Back to pending":`Show cleared (${done.length})`}</button>`:""}
+      ${done.length?`<button class="btn ghost" type="button" id="reviewReset">Reset all</button>`:""}
+    </div></div>`;
+
+  const body = list.length
+    ? sections
+    : (state.showReviewed
+        ? `<div class="empty-state">Nothing cleared yet.</div>`
+        : `<div class="empty-state">All clear — nothing pending. 🎉</div>`);
+
+  return `${sourceBanner()}
+  <div class="screen-head"><h2>Review queue</h2>
+    <p>Products whose price/measure needs a human glance. Hit <b>✓</b> to clear an item (saved locally); <b>✓ all</b> clears a whole group. Cross-venue name pairing will also land here once AI enrichment runs.</p></div>
+  ${toolbar}
+  ${body}`;
+}
+
+function viewUpload(){
+  const hasKey=!!SETTINGS.get().apiKey;
+  const opts=(cur)=>[...new Set([...CANON_VENUES,cur])]
+    .map(v=>`<option value="${esc(v)}" ${v===cur?"selected":""}>${esc(v)}</option>`).join("");
+  const nStaged=state.staged.length;
+  const staged = nStaged ? `<div class="staged">${state.staged.map((s,i)=>`
+      <div class="srow">
+        <span class="sfile">${esc(s.name)}</span>
+        <span class="scount">${s.count} priced</span>
+        <select data-staged-venue="${i}" aria-label="Venue for ${esc(s.name)}">${opts(s.venue)}</select>
+        <button class="srm" type="button" data-staged-remove="${i}" title="Remove">✕</button>
+      </div>`).join("")}</div>
+    <div class="up-actions">
+      <button class="btn primary" data-action="build" type="button">Build catalogue · ${nStaged} venue${nStaged>1?"s":""}</button>
+      <button class="btn ghost" data-action="clear-staged" type="button">Clear</button>
+    </div>` : "";
+
+  const built = state.model ? `<div class="up-actions">
+      <button class="btn primary" data-action="enrich" type="button">${hasKey?"":"⚙ "}Enrich with AI</button>
+      <button class="btn ghost" data-action="download" type="button">Download catalogue.json</button>
+      <button class="btn ghost" data-nav="comparison" type="button">Open comparison →</button>
+    </div>
+    <div class="note">Loaded <b>${esc(state.source||"data")}</b> — ${state.model.venues.length} venues, ${state.model.rows.length} products.
+      <b>Enrich with AI</b> groups them into departments and pairs the same product across venues (e.g. <i>gin bombai</i> ↔ <i>gin bmbai</i>);
+      it runs from your browser with your saved key. <b>Download</b> writes the result as <code>catalogue.json</code> — drop it next to
+      <code>index.html</code> (as <code>catalogue.js</code> via the build script, or served) to make it the bundled snapshot.</div>` : "";
+
+  return `<div class="screen-head up-head">
+    <div><h2>Load data</h2>
+    <p>Drop the per-venue <b>Till&nbsp;Pricing CSV</b> exports — one per venue, several at once is fine. They’re parsed in your browser with the
+      exact same logic as the build script; the venue is read from each filename (editable below) and prices become measures. Nothing leaves your
+      browser unless you choose to enrich with AI.</p></div>
+    <button class="settings-fab" type="button" data-action="open-settings">${hasKey?'<span class="dotset" title="key saved"></span>':""}⚙ AI settings</button>
+  </div>
+  <label class="drop" id="drop" for="fileInput" tabindex="0">
+    <div style="font-size:28px">⬆</div>
+    <div class="big">Drop venue CSVs here</div>
+    <div class="small">…or click to choose. A ready-made <code>catalogue.json</code> also loads directly.</div>
+  </label>
+  ${staged}
+  ${built}
+  ${!nStaged && !state.model && window.__CATALOGUE__?`<div class="up-actions"><button class="btn ghost" id="sampleBtn" type="button">Load bundled snapshot</button></div>`:""}
+  <div class="note"><b>Or rebuild from the command line.</b> Put the <code>*Pricing.csv</code> exports in <code>data/</code> and run
+    <code>python scripts/build_catalogue.py</code> — identical output to the in-browser path, plus it writes <code>catalogue.js</code> for offline auto-load.</div>`;
+}
+
+/* ---------- wiring ---------- */
+function postRender(){
+  if(state.screen==="comparison"){
+    const s=$("#search"); if(s) s.addEventListener("input",e=>{state.search=e.target.value; refreshList();});
+    const d=$("#deptSelect"); if(d) d.addEventListener("change",e=>{state.dept=e.target.value; refreshList();});
+  }
+  if(state.screen==="upload") wireUpload();
+}
+function refreshList(){ const el=$("#productList"); if(el) el.innerHTML=productListHtml(); }
+function refreshPanels(){ const main=$("#cmpMain"); const m=state.model;
+  const product=m.products.get(state.product)||m.products.get(m.defaultProductKey);
+  if(main) main.innerHTML=comparisonMain(m,product); refreshList(); }
+
+document.addEventListener("click",e=>{
+  if(e.target.id==="settingsOv"){ closeSettings(); return; }
+  if(e.target.id==="enrichOv" && !$("#enrichClose").hidden){ closeEnrich(); return; }
+  const t=e.target.closest("[data-nav],[data-product],[data-filter],[data-action],[data-review-ok],[data-review-undo],[data-review-okall],[data-staged-remove],#sampleBtn,#settingsSave,#settingsClose,#enrichClose,#reviewToggle,#reviewReset");
+  if(!t)return;
+  if(t.dataset.reviewOk!=null){ REVIEWED.add(t.dataset.reviewOk); render(); return; }
+  if(t.dataset.reviewUndo!=null){ REVIEWED.remove(t.dataset.reviewUndo); render(); return; }
+  if(t.dataset.reviewOkall!=null){ const f=t.dataset.reviewOkall;
+    state.model.rows.filter(r=>r.needs_review&&r.flags.includes(f)&&!REVIEWED.has(rkey(r))).forEach(r=>REVIEWED.add(rkey(r))); render(); return; }
+  if(t.dataset.stagedRemove!=null){ state.staged.splice(+t.dataset.stagedRemove,1); render(); return; }
+  if(t.id==="reviewToggle"){ state.showReviewed=!state.showReviewed; render(); return; }
+  if(t.id==="reviewReset"){ REVIEWED.clear(); state.showReviewed=false; render(); return; }
+  if(t.id==="enrichClose"){ closeEnrich(); return; }
+  if(t.dataset.action==="open-settings"){ openSettings(); return; }
+  if(t.dataset.action==="build"){ buildFromStaged(); return; }
+  if(t.dataset.action==="clear-staged"){ state.staged=[]; render(); return; }
+  if(t.dataset.action==="enrich"){ runEnrich(); return; }
+  if(t.dataset.action==="download"){ downloadCatalogue(); return; }
+  if(t.id==="settingsSave"){ saveSettings(); return; }
+  if(t.id==="settingsClose"){ closeSettings(); return; }
+  if(t.dataset.nav){ if(t.disabled)return; state.screen=t.dataset.nav; render(); return; }
+  if(t.dataset.product!=null){ state.product=t.dataset.product; refreshPanels(); return; }
+  if(t.dataset.filter){ state.filter=t.dataset.filter; document.querySelectorAll("[data-filter]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.filter===state.filter)); refreshList(); return; }
+  if(t.id==="sampleBtn"){ if(window.__CATALOGUE__){ setModel(buildModel(window.__CATALOGUE__),"bundled snapshot"); state.screen="comparison"; render(); } }
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){
+  const so=$("#settingsOv"); if(so&&!so.hidden){ closeSettings(); return; }
+  const eo=$("#enrichOv"); if(eo&&!eo.hidden&&!$("#enrichClose").hidden) closeEnrich(); } });
+$("#themeBtn").addEventListener("click",()=>{ const cur=document.documentElement.getAttribute("data-theme");
+  const next=cur==="dark"?"light":cur==="light"?"dark":(matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark");
+  document.documentElement.setAttribute("data-theme",next); });
+
+function wireUpload(){
+  const drop=$("#drop"),input=$("#fileInput");
+  if(drop){
+    ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+    ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+    drop.addEventListener("drop",e=>{const fs=e.dataTransfer&&e.dataTransfer.files; if(fs&&fs.length)loadFiles(fs);});
+    drop.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();input&&input.click();}});
+  }
+  if(input) input.onchange=()=>{ if(input.files&&input.files.length)loadFiles(input.files); input.value=""; };
+  document.querySelectorAll("[data-staged-venue]").forEach(sel=>{ sel.onchange=()=>{ const s=state.staged[+sel.dataset.stagedVenue]; if(s) s.venue=sel.value; }; });
+}
+function readText(file){ return new Promise((res,rej)=>{ const r=new FileReader();
+  r.onload=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("read error")); r.readAsText(file); }); }
+async function loadFiles(files){
+  for(const f of Array.from(files)){
+    if(/\.json$/i.test(f.name)){
+      try{ const arr=JSON.parse(await readText(f));
+        if(Array.isArray(arr)&&arr.length){ setModel(buildModel(arr),f.name); state.staged=[]; state.screen="comparison"; render(); return; }
+        alert(f.name+": not a catalogue array."); }
+      catch(e){ alert("Could not parse "+f.name); }
+      continue;
+    }
+    try{ const objs=csvToObjects(await readText(f)); const venue=venueFromFilename(f.name);
+      state.staged.push({name:f.name,venue,objs,count:buildProductsFromRows(objs,venue).length}); }
+    catch(e){ alert("Could not read "+f.name); }
+  }
+  state.screen="upload"; render();
+}
+function buildFromStaged(){
+  if(!state.staged.length) return;
+  const arr=[]; for(const s of state.staged) arr.push(...buildProductsFromRows(s.objs,s.venue));
+  if(!arr.length){ alert("No priced products found in those CSVs."); return; }
+  const nv=new Set(state.staged.map(s=>s.venue)).size;
+  setModel(buildModel(arr), nv+" venue CSV"+(nv>1?"s":""));
+  state.staged=[]; state.screen="comparison"; render();
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  if(window.__CATALOGUE__&&Array.isArray(window.__CATALOGUE__)){ setModel(buildModel(window.__CATALOGUE__),"bundled snapshot (catalogue.json)"); state.screen="comparison"; }
+  else{ try{ const res=await fetch("catalogue.json"); if(res.ok){ const a=await res.json(); if(Array.isArray(a)&&a.length){ setModel(buildModel(a),"catalogue.json"); state.screen="comparison"; } else state.screen="upload"; } else state.screen="upload"; }catch(e){ state.screen="upload"; } }
+  render();
+})();
+
+/* ---------- desktop auto-update (only inside the Tauri shell) ----------
+   In a plain browser window.__TAURI__ is undefined and this is a no-op. Inside
+   the packaged app it listens for the backend's update events and drives the
+   bottom bar. Backend commands: check_now / install_now (see src-tauri). */
+(function initUpdater(){
+  const T=window.__TAURI__; if(!T||!T.event||!T.core) return;
+  const invoke=T.core.invoke, listen=T.event.listen, bar=$("#updbar");
+  const show=html=>{ if(bar){ bar.innerHTML=html; bar.setAttribute("data-show","1"); } };
+  const hide=()=>{ if(bar) bar.removeAttribute("data-show"); };
+  listen("update://available", e=>show(`<span><span class="spin"></span>Actualización <b>${esc(e.payload)}</b> disponible — descargando…</span>`));
+  listen("update://ready", e=>show(
+    `<span>Versión <b>${esc(e.payload)}</b> lista.</span>
+     <button data-upd="install" type="button">Reiniciar y actualizar</button>
+     <span style="opacity:.85">…o se instalará al cerrar la app</span>
+     <button class="u-x" data-upd="dismiss" type="button" title="Ocultar">✕</button>`));
+  listen("update://error", ()=>{ /* offline / no release yet — stay quiet */ });
+  document.addEventListener("click", e=>{ const b=e.target.closest("[data-upd]"); if(!b)return;
+    if(b.dataset.upd==="install"){ b.textContent="Actualizando…"; b.disabled=true;
+      invoke("install_now").catch(()=>{ b.textContent="Reiniciar y actualizar"; b.disabled=false; }); }
+    else if(b.dataset.upd==="dismiss") hide();
+  });
+  // Manual check, e.g. window.__checkForUpdates() from a menu/shortcut later.
+  window.__checkForUpdates=()=>{ show(`<span><span class="spin"></span>Buscando actualizaciones…</span>`);
+    invoke("check_now").then(v=>{ if(!v) show(`<span>Ya tienes la última versión.</span><button class="u-x" data-upd="dismiss" type="button">✕</button>`); })
+      .catch(()=>hide()); };
+})();
+</script>
+</body>
+</html>

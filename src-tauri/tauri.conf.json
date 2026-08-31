@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "TBG Pricing",
+  "version": "0.1.0",
+  "identifier": "com.tbg.pricing",
+  "build": {
+    "frontendDist": "../webdist",
+    "beforeDevCommand": "node scripts/copy-web.mjs",
+    "beforeBuildCommand": "node scripts/copy-web.mjs"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "TBG Pricing — till pricing by measure",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Juanitosdev/pricing/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU1MDMyQjFFRTJFMTNEQTcKUldTblBlSGlIaXNENVdpUmN0QWVsanhSVU1ORDdTdHNZK00rVnBySW5MTXZFOXh5citwUHZETG4K",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

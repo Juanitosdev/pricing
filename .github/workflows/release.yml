@@ -1,0 +1,49 @@
+name: release
+
+# Build the Windows installer + updater artifacts and publish a GitHub Release
+# whenever a version tag is pushed (e.g. `git tag v0.2.0 && git push --tags`).
+# tauri-action signs the update bundle and generates `latest.json`, which the
+# running app reads from `releases/latest/download/latest.json`.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install front-end deps
+        run: npm install
+
+      - name: Build, sign and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'TBG Pricing ${{ github.ref_name }}'
+          releaseBody: 'Automated build. The app updates itself from this release.'
+          releaseDraft: false
+          prerelease: false

@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────────────────
+# The venues' ACTUAL pricing data — NEVER commit. The app ships empty and the
+# boss loads their own CSVs at runtime, so none of this belongs in the repo.
+# Keep these local only.
+# ─────────────────────────────────────────────────────────────────────────
+data/
+catalogue.json
+catalogue.js
+sample-reports/
+dept_map.json
+dept_samples.json
+pairing_map.json
+pairing_input.json
+
+# Node
+node_modules/
+
+# Tauri / Rust build output
+src-tauri/target/
+src-tauri/gen/
+
+# Generated desktop front-end (copied from index.html + catalogue.js at build)
+webdist/
+
+# Updater signing keys — NEVER commit these
+*.key
+*.key.pub
+tbg-pricing-updater.key*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Scratch
+_check.js
+_ingest.js
+_parity.js
