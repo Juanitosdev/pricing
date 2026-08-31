@@ -581,7 +581,7 @@ async function runEnrich(){
     for(const r of rows) r.group=pairMap[r.base_key]||r.base_key;
     setModel(buildModel(rows), state.source||"uploaded CSVs");
     log("Done ✓ — departments mapped, "+Object.keys(pairMap).length+" names paired across venues.",false,true);
-    enrichDone(); render();
+    enrichDone(); render(); persistCatalogue();
   }catch(e){ log("Failed: "+(e.message||e),true); enrichDone(); }
 }
 function openEnrich(){ const ov=$("#enrichOv"); if(!ov)return;
@@ -593,13 +593,25 @@ function enrichLog(msg,err,ok){ const el=$("#enrichLog"); if(!el)return;
 function enrichDone(){ const t=$("#enrichTitle"); if(t)t.textContent="AI enrichment"; const c=$("#enrichClose"); if(c)c.hidden=false; }
 function closeEnrich(){ const ov=$("#enrichOv"); if(ov)ov.hidden=true; }
 
+function catalogueArray(){ return state.model ? state.model.rows.map(r=>({venue:r.venue,name_raw:r.name_raw,name_norm:r.name_norm,base_key:r.base_key,
+    group:r.group,dept_code:r.dept_code,department:r.department,measures:r.measures,flags:r.flags,needs_review:r.needs_review})) : []; }
 function downloadCatalogue(){ if(!state.model)return;
-  const arr=state.model.rows.map(r=>({venue:r.venue,name_raw:r.name_raw,name_norm:r.name_norm,base_key:r.base_key,
-    group:r.group,dept_code:r.dept_code,department:r.department,measures:r.measures,flags:r.flags,needs_review:r.needs_review}));
-  const blob=new Blob([JSON.stringify(arr)],{type:"application/json"});
+  const blob=new Blob([JSON.stringify(catalogueArray())],{type:"application/json"});
   const url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="catalogue.json"; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1000); }
+
+/* ---------- desktop persistence (only inside the Tauri shell) ----------
+   Saves the built/enriched catalogue next to the .exe (./data/catalogue.json)
+   so reopening the app lands straight in the comparison instead of Upload.
+   In a plain browser window.__TAURI__ is undefined and these are no-ops. */
+const DESKTOP={
+  _inv(){ const T=window.__TAURI__; return (T&&T.core&&T.core.invoke)||null; },
+  available(){ return !!this._inv(); },
+  async save(arr){ const inv=this._inv(); if(!inv)return; try{ await inv("save_catalogue",{json:JSON.stringify(arr)}); }catch(e){ console.warn("save_catalogue failed",e); } },
+  async load(){ const inv=this._inv(); if(!inv)return null; try{ const s=await inv("load_catalogue"); if(!s)return null; const a=JSON.parse(s); return Array.isArray(a)&&a.length?a:null; }catch(e){ console.warn("load_catalogue failed",e); return null; } },
+};
+function persistCatalogue(){ if(state.model&&DESKTOP.available()) DESKTOP.save(catalogueArray()); }
 
 const state={screen:"comparison",model:null,product:null,filter:"comparable",dept:"all",search:"",source:"",showReviewed:false,staged:[]};
 function setModel(m,src){state.model=m;state.source=src||"";state.product=m.defaultProductKey;state.filter="comparable";state.dept="all";state.search="";}
@@ -873,7 +885,7 @@ async function loadFiles(files){
   for(const f of Array.from(files)){
     if(/\.json$/i.test(f.name)){
       try{ const arr=JSON.parse(await readText(f));
-        if(Array.isArray(arr)&&arr.length){ setModel(buildModel(arr),f.name); state.staged=[]; state.screen="comparison"; render(); return; }
+        if(Array.isArray(arr)&&arr.length){ setModel(buildModel(arr),f.name); state.staged=[]; state.screen="comparison"; render(); persistCatalogue(); return; }
         alert(f.name+": not a catalogue array."); }
       catch(e){ alert("Could not parse "+f.name); }
       continue;
@@ -890,13 +902,17 @@ function buildFromStaged(){
   if(!arr.length){ alert("No priced products found in those CSVs."); return; }
   const nv=new Set(state.staged.map(s=>s.venue)).size;
   setModel(buildModel(arr), nv+" venue CSV"+(nv>1?"s":""));
-  state.staged=[]; state.screen="comparison"; render();
+  state.staged=[]; state.screen="comparison"; render(); persistCatalogue();
 }
 
 /* ---------- boot ---------- */
 (async function(){
   if(window.__CATALOGUE__&&Array.isArray(window.__CATALOGUE__)){ setModel(buildModel(window.__CATALOGUE__),"bundled snapshot (catalogue.json)"); state.screen="comparison"; }
-  else{ try{ const res=await fetch("catalogue.json"); if(res.ok){ const a=await res.json(); if(Array.isArray(a)&&a.length){ setModel(buildModel(a),"catalogue.json"); state.screen="comparison"; } else state.screen="upload"; } else state.screen="upload"; }catch(e){ state.screen="upload"; } }
+  else{
+    const saved=await DESKTOP.load();
+    if(saved){ setModel(buildModel(saved),"saved on this device"); state.screen="comparison"; }
+    else{ try{ const res=await fetch("catalogue.json"); if(res.ok){ const a=await res.json(); if(Array.isArray(a)&&a.length){ setModel(buildModel(a),"catalogue.json"); state.screen="comparison"; } else state.screen="upload"; } else state.screen="upload"; }catch(e){ state.screen="upload"; } }
+  }
   render();
 })();
 

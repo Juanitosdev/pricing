@@ -22,6 +22,9 @@ src-tauri/gen/
 # Generated desktop front-end (copied from index.html + catalogue.js at build)
 webdist/
 
+# CI release staging (portable exe + latest.json)
+dist/
+
 # Updater signing keys — NEVER commit these
 *.key
 *.key.pub

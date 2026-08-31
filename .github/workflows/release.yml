@@ -1,9 +1,12 @@
 name: release
 
-# Build the Windows installer + updater artifacts and publish a GitHub Release
-# whenever a version tag is pushed (e.g. `git tag v0.2.0 && git push --tags`).
-# tauri-action signs the update bundle and generates `latest.json`, which the
-# running app reads from `releases/latest/download/latest.json`.
+# Build the PORTABLE Windows .exe + updater manifest and publish a GitHub Release
+# whenever a version tag is pushed (e.g. `git tag v0.2.0 && git push origin v0.2.0`).
+#
+# The app is portable (no installer): we build the raw exe with `cargo build`,
+# sign it with the updater key, and write a `latest.json` pointing at it. The
+# running app reads that manifest from releases/latest/download/latest.json,
+# downloads + verifies the new exe, and swaps itself on close (see src-tauri/src/lib.rs).
 
 on:
   push:
@@ -32,18 +35,58 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install front-end deps
+      - name: Install deps (front-end + Tauri CLI)
         run: npm install
 
-      - name: Build, sign and release
-        uses: tauri-apps/tauri-action@v0
+      - name: Prepare web assets (index.html + empty catalogue.js -> webdist/)
+        run: node scripts/copy-web.mjs
+
+      - name: Build portable exe
+        run: cargo build --release --manifest-path src-tauri/Cargo.toml
+
+      - name: Sign exe and assemble release artifacts
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
+          $built = 'src-tauri/target/release/tbg-pricing.exe'
+          if (-not (Test-Path $built)) { throw "built exe not found at $built" }
+
+          # Sign the exe with the updater key -> writes "$built.sig" (minisign signature).
+          npx tauri signer sign $built
+          if ($LASTEXITCODE -ne 0) { throw 'signer sign failed' }
+          if (-not (Test-Path "$built.sig")) { throw "signer did not produce $built.sig" }
+          $sig = (Get-Content "$built.sig" -Raw).Trim()
+
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item $built 'dist/TBG.Pricing.exe' -Force
+
+          $manifest = [ordered]@{
+            version   = $version
+            notes     = "TBG Pricing $version"
+            pub_date  = (Get-Date).ToUniversalTime().ToString('o')
+            platforms = [ordered]@{
+              'windows-x86_64' = [ordered]@{
+                signature = $sig
+                url       = "https://github.com/${{ github.repository }}/releases/download/$tag/TBG.Pricing.exe"
+              }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 6 | Set-Content -Path 'dist/latest.json' -Encoding utf8
+          Write-Host "Assembled dist/TBG.Pricing.exe + dist/latest.json for $version"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'TBG Pricing ${{ github.ref_name }}'
-          releaseBody: 'Automated build. The app updates itself from this release.'
-          releaseDraft: false
+          tag_name: ${{ github.ref_name }}
+          name: 'TBG Pricing ${{ github.ref_name }}'
+          body: 'Portable build — the app updates itself from this release.'
+          draft: false
           prerelease: false
+          files: |
+            dist/TBG.Pricing.exe
+            dist/latest.json

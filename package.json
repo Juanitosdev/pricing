@@ -1,7 +1,7 @@
 {
   "name": "tbg-pricing",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TBG Pricing — local till-price comparison dashboard, packaged as a self-updating desktop app.",
   "type": "module",
   "scripts": {
