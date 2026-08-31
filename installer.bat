@@ -13,7 +13,7 @@ title Instalar TBG Pricing
 
 set "TARGET=%~dp0pricing"
 set "EXE=%TARGET%\TBG.Pricing.exe"
-set "TMP=%TARGET%\TBG.Pricing.exe.download"
+set "TMP=%TARGET%\TBG.Pricing.tmp"
 set "URL=https://github.com/Juanitosdev/pricing/releases/latest/download/TBG.Pricing.exe"
 
 echo.
@@ -23,26 +23,27 @@ echo.
 
 if not exist "%TARGET%" mkdir "%TARGET%"
 
-rem Descarga a un archivo temporal y comprueba el codigo de salida de PowerShell.
-rem Las rutas van por variables de entorno ($env:...) para no romper el parseo si
-rem el camino contiene apostrofos (p. ej. C:\Users\O'Brien\Desktop).
-del "%TMP%" 2>nul
-echo   Descargando la ultima version...
+rem Limpia cualquier temporal previo, sea CARPETA o archivo, sin preguntar.
+if exist "%TMP%\" rmdir /s /q "%TMP%" 2>nul
+if exist "%TMP%" del /f /q "%TMP%" 2>nul
+
+echo   Descargando la ultima version desde GitHub...
 set "DL_URL=%URL%"
 set "DL_OUT=%TMP%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri $env:DL_URL -OutFile $env:DL_OUT -UseBasicParsing } catch { Write-Host $_.Exception.Message; exit 1 }"
 if errorlevel 1 goto :dlfail
 if not exist "%TMP%" goto :dlfail
 
-rem Descarga correcta: sustituye el exe. Si la app esta abierta el exe estara
-rem bloqueado, el move fallara y avisamos (en vez de dejar la version vieja).
-del "%EXE%" 2>nul
+rem Coloca el exe: quita cualquier version previa (carpeta o archivo). Si la app
+rem esta abierta el exe estara bloqueado y el move fallara -> avisamos.
+if exist "%EXE%\" rmdir /s /q "%EXE%" 2>nul
+if exist "%EXE%" del /f /q "%EXE%" 2>nul
 move /y "%TMP%" "%EXE%" >nul
 if errorlevel 1 (
   echo.
-  echo   ERROR: no se pudo reemplazar el exe. Cierra TBG Pricing si esta abierto y reintenta.
+  echo   ERROR: no se pudo colocar el exe. Cierra TBG Pricing si esta abierto y reintenta.
   echo.
-  del "%TMP%" 2>nul
+  if exist "%TMP%" del /f /q "%TMP%" 2>nul
   pause
   exit /b 1
 )
@@ -56,12 +57,13 @@ echo   Listo. Abriendo TBG Pricing...
 start "" "%EXE%"
 
 rem El instalador se autodestruye al terminar.
-(goto) 2>nul & del "%~f0"
+(goto) 2>nul & del /f /q "%~f0"
 
 :dlfail
 echo.
 echo   ERROR: no se pudo descargar la app. Revisa tu conexion e intentalo de nuevo.
 echo.
-del "%TMP%" 2>nul
+if exist "%TMP%\" rmdir /s /q "%TMP%" 2>nul
+if exist "%TMP%" del /f /q "%TMP%" 2>nul
 pause
 exit /b 1
