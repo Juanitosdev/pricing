@@ -6,6 +6,9 @@
 data/
 catalogue.json
 catalogue.js
+catalogue.js.bak
+catalogue.json.bak
+*.bak
 sample-reports/
 dept_map.json
 dept_samples.json

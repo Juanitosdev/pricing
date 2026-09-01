@@ -172,6 +172,28 @@
   .fld .sub{font-size:11.5px; color:var(--muted); margin-top:5px}
   .scard .actions{display:flex; gap:10px; justify-content:flex-end; align-items:center; margin-top:6px}
   .saved{font-size:12px; color:var(--good); font-weight:600; margin-right:auto}
+  /* on/off toggle (settings) */
+  .fld .switch-row{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:0; cursor:pointer}
+  .switch-text{display:flex; flex-direction:column; gap:2px}
+  .switch-title{font-size:13px; font-weight:650; color:var(--ink)}
+  .switch{position:relative; display:inline-block; width:42px; height:24px; flex:0 0 auto}
+  .switch input{position:absolute; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; z-index:2}
+  .switch .slider{position:absolute; inset:0; background:var(--baseline); border-radius:999px; transition:.15s}
+  .switch .slider::before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 3px rgba(0,0,0,.35)}
+  .switch input:checked + .slider{background:var(--accent)}
+  .switch input:checked + .slider::before{transform:translateX(18px)}
+  .switch input:focus-visible + .slider{box-shadow:0 0 0 3px var(--accent-soft)}
+  /* inline edit of measure/price (Review table + comparison cards) */
+  .medit{display:flex; gap:6px; align-items:center; margin:4px 0; flex-wrap:wrap}
+  .medit input,.medit select{border:1px solid var(--border); background:var(--page); color:var(--ink); border-radius:6px; padding:4px 7px; font-size:12.5px; font-family:inherit; outline:none}
+  .medit input:focus,.medit select:focus{border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft)}
+  .me-label{width:120px} .me-label-custom{width:120px} .me-price{width:80px}
+  .editing{background:var(--accent-soft); border-radius:8px; padding:6px 8px}
+  .rev-act.edit{color:var(--secondary)} .rev-act.edit:hover{background:var(--surface-2)}
+  .rev-act.mini{margin-left:auto; border:none; background:none; padding:2px 4px; font-size:13px; opacity:.55; font-weight:400; border-radius:5px}
+  .rev-act.mini:hover{opacity:1; background:var(--surface-2)}
+  .rev-act.save{color:var(--good)} .rev-act.cancel{color:var(--secondary)}
+  .edit-actions{margin-left:auto; display:inline-flex; gap:6px}
 
   .staged{margin-top:18px; display:flex; flex-direction:column; gap:8px}
   .staged .srow{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 12px}
@@ -216,19 +238,29 @@
 <div class="ov" id="settingsOv" hidden role="dialog" aria-modal="true" aria-label="AI settings">
   <div class="scard">
     <h3>AI settings</h3>
-    <p class="hint">Used only for the optional enrichment step — grouping products into a few departments and matching similar names across venues. Your key is stored locally in this browser (localStorage) and is only sent to Anthropic when you run enrichment.</p>
+    <p class="hint">Claude enriches the catalogue: it groups products into departments and matches the same product across venues despite typos. Your key is stored locally (localStorage) and only sent to Anthropic when enrichment runs.</p>
     <div class="fld">
       <label for="setKey">Anthropic API key</label>
       <input id="setKey" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
-      <div class="sub">Kept on this device only. Never uploaded anywhere else.</div>
+      <div class="sub"><span id="setKeyState"></span> — kept on this device only, never uploaded anywhere.</div>
     </div>
     <div class="fld">
-      <label for="setModel">Model for enrichment</label>
+      <label for="setModel">Model</label>
       <select id="setModel">
-        <option value="claude-sonnet-5">Claude Sonnet 5 — recommended (~$0.40 for all venues)</option>
-        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — cheapest (~$0.20)</option>
-        <option value="claude-opus-4-8">Claude Opus 4.8 — max accuracy (~$1–2)</option>
+        <option value="claude-opus-5">Claude Opus 5 — máxima precisión (recomendado)</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5 — equilibrado (~$0.40)</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 — más barato (~$0.20)</option>
       </select>
+    </div>
+    <div class="fld">
+      <label class="switch-row" for="setAiOn">
+        <span class="switch-text">
+          <span class="switch-title">Enrich with AI on Build</span>
+          <span class="sub">When on (and a key is set), every Build auto-groups departments and pairs products across venues (uses the API). When off, Build is script-only.</span>
+        </span>
+        <span class="switch"><input type="checkbox" id="setAiOn" /><span class="slider"></span></span>
+      </label>
     </div>
     <div class="actions">
       <span class="saved" id="setSaved" hidden>Saved ✓</span>
@@ -279,14 +311,14 @@ function titleCase(s){return String(s).replace(/\b\w/g,c=>c.toUpperCase())}
 
 /* ---------- AI settings (local only) ---------- */
 const SETTINGS={
-  get(){ return {apiKey:(localStorage.getItem("pc.apiKey")||""), model:(localStorage.getItem("pc.model")||"claude-sonnet-5")}; },
-  set(k,m){ localStorage.setItem("pc.apiKey",k); localStorage.setItem("pc.model",m); }
+  get(){ return {apiKey:(localStorage.getItem("pc.apiKey")||""), model:(localStorage.getItem("pc.model")||"claude-opus-5"), aiOn:(localStorage.getItem("pc.aiEnabled")==="1")}; },
+  set(k,m,ai){ localStorage.setItem("pc.apiKey",k); localStorage.setItem("pc.model",m); localStorage.setItem("pc.aiEnabled",ai?"1":"0"); }
 };
-function openSettings(){ const s=SETTINGS.get(); const k=$("#setKey"),m=$("#setModel"); if(k)k.value=s.apiKey; if(m)m.value=s.model;
+function openSettings(){ const s=SETTINGS.get(); const k=$("#setKey"),m=$("#setModel"),a=$("#setAiOn"); if(k)k.value=s.apiKey; if(m)m.value=s.model; if(a)a.checked=s.aiOn;
+  const ks=$("#setKeyState"); if(ks)ks.textContent=s.apiKey?"✓ Key saved":"No key yet";
   const sv=$("#setSaved"); if(sv)sv.hidden=true; const ov=$("#settingsOv"); if(ov){ov.hidden=false; if(k)k.focus();} }
 function closeSettings(){ const ov=$("#settingsOv"); if(ov)ov.hidden=true; }
-function saveSettings(){ SETTINGS.set(($("#setKey").value||"").trim(), $("#setModel").value); const sv=$("#setSaved"); if(sv)sv.hidden=false;
-  const b=document.querySelector('[data-action="open-settings"]'); if(b) b.innerHTML='<span class="dotset" title="key saved"></span>⚙ AI settings'; }
+function saveSettings(){ const a=$("#setAiOn"); SETTINGS.set(($("#setKey").value||"").trim(), $("#setModel").value, !!(a&&a.checked)); render(); closeSettings(); }
 
 /* ---------- review triage state (local, persisted) ---------- */
 const REVIEWED={
@@ -613,7 +645,7 @@ const DESKTOP={
 };
 function persistCatalogue(){ if(state.model&&DESKTOP.available()) DESKTOP.save(catalogueArray()); }
 
-const state={screen:"comparison",model:null,product:null,filter:"comparable",dept:"all",search:"",source:"",showReviewed:false,staged:[]};
+const state={screen:"comparison",model:null,product:null,filter:"comparable",dept:"all",search:"",source:"",showReviewed:false,staged:[],editRow:null};
 function setModel(m,src){state.model=m;state.source=src||"";state.product=m.defaultProductKey;state.filter="comparable";state.dept="all";state.search="";}
 function departmentsPresent(){ const s=new Set(state.model.rows.map(r=>r.department)); return DEPT_ORDER.filter(d=>s.has(d)); }
 
@@ -647,8 +679,27 @@ function productListHtml(){
       <span class="pmeta"><span>${esc(p.department)}</span><span>·</span><span>${n} ${n===1?"venue":"venues"}</span></span></button>`;
   }).join("");
 }
+const MEASURE_PRESETS=["pint","half pint","mixer","single","double","25ml","50ml","100ml","200ml","250ml","300ml","330ml","500ml","750ml","1l","1.5l","2l","1oz","1/2oz"];
+function measureOptions(){
+  const list=[...MEASURE_PRESETS]; const seen=new Set(list.map(x=>x.toLowerCase()));
+  if(state.model) for(const r of state.model.rows) for(const m of r.measures){ const l=String(m.label||"").trim(); if(l&&!seen.has(l.toLowerCase())){ seen.add(l.toLowerCase()); list.push(l); } }
+  return list;
+}
+function measureEditHtml(m,i){
+  const cur=String(m.label||""), opts=measureOptions();
+  const inList=opts.some(o=>o.toLowerCase()===cur.toLowerCase());
+  let oh=opts.map(o=>`<option value="${esc(o)}"${o.toLowerCase()===cur.toLowerCase()?" selected":""}>${esc(o)}</option>`).join("");
+  if(!inList&&cur) oh=`<option value="${esc(cur)}" selected>${esc(cur)}</option>`+oh;
+  oh+=`<option value="__custom__">✏️ Otra…</option>`;
+  return `<div class="medit"><select class="me-label" data-mi="${i}" aria-label="measure">${oh}</select><input class="me-label-custom" data-mi="${i}" placeholder="escribe la medida" hidden /><input class="me-price" data-mi="${i}" type="number" min="0" step="0.01" value="${m.price}" aria-label="price" /></div>`;
+}
 function barsHtml(rows,maxPrice){
   return rows.map(r=>{
+    const k=esc(rkey(r));
+    if(state.editRow===rkey(r)){
+      const inputs=r.measures.map((m,i)=>measureEditHtml(m,i)).join("");
+      return `<div class="rowgroup editing"><div class="rowname">${esc(r.name_raw)}<span class="edit-actions"><button class="rev-act save" type="button" data-review-save="${k}" title="Save">💾</button><button class="rev-act cancel" type="button" data-review-cancel="1" title="Cancel">✕</button></span></div>${inputs}</div>`;
+    }
     const amb=r.flags.includes("measure_ambiguous")||r.flags.includes("price_suspect");
     const chips=r.flags.filter(f=>["happy_hour","package","modifier"].includes(f))
       .map(f=>`<span class="chip ${f==="happy_hour"?"hh":""}" title="${esc(FLAG_META[f]?FLAG_META[f].t:f)}">${esc(f.replace("_"," "))}</span>`).join("");
@@ -661,7 +712,8 @@ function barsHtml(rows,maxPrice){
         <div class="mprice ${amb?"amb":""}">${money(m.price)}</div></div>`;
     }).join("");
     const showName = rows.length>1 || chips;
-    return `<div class="rowgroup">${showName?`<div class="rowname">${esc(r.name_raw)}${chips}</div>`:""}${bars}</div>`;
+    const header=`<div class="rowname">${showName?`${esc(r.name_raw)}${chips}`:""}<button class="rev-act edit mini" type="button" data-review-edit="${k}" title="Edit measures / prices">✎</button></div>`;
+    return `<div class="rowgroup">${header}${bars}</div>`;
   }).join("");
 }
 function panelHtml(pd,idx,maxPrice){
@@ -701,7 +753,7 @@ function comparisonMain(m,product){
 function sourceBanner(){ if(!state.source)return"";
   const hasKey=!!SETTINGS.get().apiKey;
   return `<div class="banner"><span>Showing <b>${esc(state.source)}</b>. One snapshot per venue — comparison is across venues, by measure.</span>
-    <button class="btn ghost" data-action="enrich" type="button">${hasKey?"":"⚙ "}Enrich with AI</button>
+    <button class="btn ghost" data-action="open-settings" type="button">${hasKey?'<span class="dotset" title="key saved"></span>':""}⚙ AI settings</button>
     <button class="btn ghost" data-action="download" type="button">Download</button>
     <button class="btn ghost" data-nav="upload" type="button">Load different data</button></div>`; }
 function viewComparison(){
@@ -727,14 +779,34 @@ function viewComparison(){
 }
 
 function reviewRowHtml(r,flag,done){
-  const ms=r.measures.map(m=>`${esc(m.label)}&nbsp;${money(m.price)}`).join(" · ");
-  const others=r.flags.filter(f=>f!==flag&&f!=="size_in_name").map(f=>`<span class="chip">${esc(f.replace("_"," "))}</span>`).join(" ");
   const k=esc(rkey(r));
+  const others=r.flags.filter(f=>f!==flag&&f!=="size_in_name").map(f=>`<span class="chip">${esc(f.replace("_"," "))}</span>`).join(" ");
+  if(!done && state.editRow===rkey(r)){
+    const inputs=r.measures.map((m,i)=>measureEditHtml(m,i)).join("");
+    const act=`<button class="rev-act save" type="button" data-review-save="${k}" title="Save">💾</button><button class="rev-act cancel" type="button" data-review-cancel="1" title="Cancel">✕</button>`;
+    return `<tr class="editing"><td class="vn">${esc(r.venue)}</td><td>${esc(r.name_raw)}</td><td class="mm">${inputs}</td><td>${others}</td><td class="ract">${act}</td></tr>`;
+  }
+  const ms=r.measures.map(m=>`${esc(m.label)}&nbsp;${money(m.price)}`).join(" · ");
   const act=done
     ? `<button class="rev-act undo" type="button" data-review-undo="${k}" title="Move back to pending">↩</button>`
-    : `<button class="rev-act ok" type="button" data-review-ok="${k}" title="Looks right — clear it">✓</button>`;
+    : `<button class="rev-act edit" type="button" data-review-edit="${k}" title="Edit measure / price">✎</button><button class="rev-act ok" type="button" data-review-ok="${k}" title="Looks right — clear it">✓</button>`;
   return `<tr class="${done?"is-done":""}"><td class="vn">${esc(r.venue)}</td><td>${esc(r.name_raw)}</td>
     <td class="mm">${ms}</td><td>${others}</td><td class="ract">${act}</td></tr>`;
+}
+function saveReviewEdit(k){
+  const row=state.model.rows.find(r=>rkey(r)===k);
+  const tr=document.querySelector(".editing");
+  if(row&&tr){
+    const customs={}; tr.querySelectorAll(".me-label-custom").forEach(c=>{ customs[c.dataset.mi]=c; });
+    tr.querySelectorAll(".me-label").forEach(sel=>{ const i=+sel.dataset.mi; if(!row.measures[i])return;
+      let v=sel.value; if(v==="__custom__"){ const c=customs[sel.dataset.mi]; v=c?(c.value||"").trim():""; }
+      if(v) row.measures[i].label=v; });
+    tr.querySelectorAll(".me-price").forEach(inp=>{ const i=+inp.dataset.mi; const v=parseFloat(inp.value); if(row.measures[i]&&isFinite(v)&&v>0) row.measures[i].price=v; });
+  }
+  state.editRow=null;
+  if(row){ const keep={product:state.product,filter:state.filter,dept:state.dept,search:state.search,screen:state.screen,showReviewed:state.showReviewed};
+    setModel(buildModel(state.model.rows), state.source||"edited"); Object.assign(state,keep); }
+  render(); persistCatalogue();
 }
 function viewReview(){
   const m=state.model;
@@ -795,14 +867,12 @@ function viewUpload(){
     </div>` : "";
 
   const built = state.model ? `<div class="up-actions">
-      <button class="btn primary" data-action="enrich" type="button">${hasKey?"":"⚙ "}Enrich with AI</button>
       <button class="btn ghost" data-action="download" type="button">Download catalogue.json</button>
       <button class="btn ghost" data-nav="comparison" type="button">Open comparison →</button>
     </div>
     <div class="note">Loaded <b>${esc(state.source||"data")}</b> — ${state.model.venues.length} venues, ${state.model.rows.length} products.
-      <b>Enrich with AI</b> groups them into departments and pairs the same product across venues (e.g. <i>gin bombai</i> ↔ <i>gin bmbai</i>);
-      it runs from your browser with your saved key. <b>Download</b> writes the result as <code>catalogue.json</code> — drop it next to
-      <code>index.html</code> (as <code>catalogue.js</code> via the build script, or served) to make it the bundled snapshot.</div>` : "";
+      AI enrichment (departments + cross-venue matching, e.g. <i>gin bombai</i> ↔ <i>gin bmbai</i>) runs automatically on <b>Build</b> when enabled in <b>⚙ AI settings</b>.
+      <b>Download</b> writes the result as <code>catalogue.json</code>.</div>` : "";
 
   return `<div class="screen-head up-head">
     <div><h2>Load data</h2>
@@ -836,15 +906,19 @@ function refreshPanels(){ const main=$("#cmpMain"); const m=state.model;
   const product=m.products.get(state.product)||m.products.get(m.defaultProductKey);
   if(main) main.innerHTML=comparisonMain(m,product); refreshList(); }
 
+document.addEventListener("change",e=>{ const s=e.target; if(s&&s.classList&&s.classList.contains("me-label")){ const c=s.parentElement&&s.parentElement.querySelector(".me-label-custom"); if(c){ if(s.value==="__custom__"){ c.hidden=false; c.focus(); } else c.hidden=true; } } });
 document.addEventListener("click",e=>{
   if(e.target.id==="settingsOv"){ closeSettings(); return; }
   if(e.target.id==="enrichOv" && !$("#enrichClose").hidden){ closeEnrich(); return; }
-  const t=e.target.closest("[data-nav],[data-product],[data-filter],[data-action],[data-review-ok],[data-review-undo],[data-review-okall],[data-staged-remove],#sampleBtn,#settingsSave,#settingsClose,#enrichClose,#reviewToggle,#reviewReset");
+  const t=e.target.closest("[data-nav],[data-product],[data-filter],[data-action],[data-review-ok],[data-review-undo],[data-review-okall],[data-review-edit],[data-review-save],[data-review-cancel],[data-staged-remove],#sampleBtn,#settingsSave,#settingsClose,#enrichClose,#reviewToggle,#reviewReset");
   if(!t)return;
   if(t.dataset.reviewOk!=null){ REVIEWED.add(t.dataset.reviewOk); render(); return; }
   if(t.dataset.reviewUndo!=null){ REVIEWED.remove(t.dataset.reviewUndo); render(); return; }
   if(t.dataset.reviewOkall!=null){ const f=t.dataset.reviewOkall;
     state.model.rows.filter(r=>r.needs_review&&r.flags.includes(f)&&!REVIEWED.has(rkey(r))).forEach(r=>REVIEWED.add(rkey(r))); render(); return; }
+  if(t.dataset.reviewEdit!=null){ state.editRow=t.dataset.reviewEdit; render(); return; }
+  if(t.dataset.reviewCancel!=null){ state.editRow=null; render(); return; }
+  if(t.dataset.reviewSave!=null){ saveReviewEdit(t.dataset.reviewSave); return; }
   if(t.dataset.stagedRemove!=null){ state.staged.splice(+t.dataset.stagedRemove,1); render(); return; }
   if(t.id==="reviewToggle"){ state.showReviewed=!state.showReviewed; render(); return; }
   if(t.id==="reviewReset"){ REVIEWED.clear(); state.showReviewed=false; render(); return; }
@@ -881,6 +955,15 @@ function wireUpload(){
 }
 function readText(file){ return new Promise((res,rej)=>{ const r=new FileReader();
   r.onload=()=>res(r.result); r.onerror=()=>rej(r.error||new Error("read error")); r.readAsText(file); }); }
+/* Normalise common mojibake from till exports: £ double-encoded as "Â£", plus
+   apostrophes (mojibake + curly) -> straight so cross-venue matching is cleaner. */
+function fixMojibake(s){
+  return String(s==null?"":s)
+    .replace(/﻿/g,"")
+    .replace(/Â£/g,"£")
+    .replace(/â€™/g,"'").replace(/â€˜/g,"'")
+    .replace(/[‘’]/g,"'");
+}
 async function loadFiles(files){
   for(const f of Array.from(files)){
     if(/\.json$/i.test(f.name)){
@@ -890,7 +973,7 @@ async function loadFiles(files){
       catch(e){ alert("Could not parse "+f.name); }
       continue;
     }
-    try{ const objs=csvToObjects(await readText(f)); const venue=venueFromFilename(f.name);
+    try{ const objs=csvToObjects(fixMojibake(await readText(f))); const venue=venueFromFilename(f.name);
       state.staged.push({name:f.name,venue,objs,count:buildProductsFromRows(objs,venue).length}); }
     catch(e){ alert("Could not read "+f.name); }
   }
@@ -903,6 +986,7 @@ function buildFromStaged(){
   const nv=new Set(state.staged.map(s=>s.venue)).size;
   setModel(buildModel(arr), nv+" venue CSV"+(nv>1?"s":""));
   state.staged=[]; state.screen="comparison"; render(); persistCatalogue();
+  const _s=SETTINGS.get(); if(_s.aiOn&&_s.apiKey) runEnrich();
 }
 
 /* ---------- boot ---------- */
