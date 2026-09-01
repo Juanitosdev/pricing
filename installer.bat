@@ -28,9 +28,9 @@ if exist "%TMP%\" rmdir /s /q "%TMP%" 2>nul
 if exist "%TMP%" del /f /q "%TMP%" 2>nul
 
 echo   Descargando la ultima version desde GitHub...
-set "DL_URL=%URL%"
-set "DL_OUT=%TMP%"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri $env:DL_URL -OutFile $env:DL_OUT -UseBasicParsing } catch { Write-Host $_.Exception.Message; exit 1 }"
+rem Usamos curl.exe (incluido en Windows 10/11): mas fiable escribiendo el .exe
+rem que Invoke-WebRequest, que daba "Acceso denegado" / dejaba temporales raros.
+curl.exe -fL --retry 2 --ssl-no-revoke -o "%TMP%" "%URL%"
 if errorlevel 1 goto :dlfail
 if not exist "%TMP%" goto :dlfail
 
